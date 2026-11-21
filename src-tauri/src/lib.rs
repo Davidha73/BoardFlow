@@ -1,0 +1,238 @@
+use std::fs;
+use std::path::Path;
+use std::process::Command;
+use serde::Deserialize;
+use tauri::Manager;
+
+#[derive(Deserialize)]
+struct WindowSettings {
+    width: Option<u32>,
+    height: Option<u32>,
+    x: Option<i32>,
+    y: Option<i32>,
+    maximized: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct AppSettings {
+    window: Option<WindowSettings>,
+}
+
+fn install_settings_dir() -> Option<std::path::PathBuf> {
+    if cfg!(debug_assertions) {
+        if let Some(project_root) = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent() {
+            return Some(project_root.to_path_buf());
+        }
+    }
+    let exe = std::env::current_exe().ok()?;
+    let exe_dir = exe.parent()?;
+    #[cfg(target_os = "macos")]
+    {
+        if exe_dir.ends_with("Contents/MacOS") {
+            if let Some(bundle_dir) = exe_dir.parent().and_then(|p| p.parent()) {
+                if let Some(parent_dir) = bundle_dir.parent() {
+                    return Some(parent_dir.to_path_buf());
+                }
+            }
+        }
+    }
+    Some(exe_dir.to_path_buf())
+}
+
+fn resolve_settings_read_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    if let Some(install_dir) = install_settings_dir() {
+        let candidate = install_dir.join("settings.json");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    app.path()
+        .app_config_dir()
+        .ok()
+        .map(|dir| dir.join("settings.json"))
+}
+
+fn restore_window_from_settings(app: &tauri::App, window: &tauri::WebviewWindow) -> bool {
+    let Some(settings_path) = resolve_settings_read_path(app.handle()) else {
+        return false;
+    };
+    let Ok(raw) = fs::read_to_string(settings_path) else {
+        return false;
+    };
+    let Ok(settings) = serde_json::from_str::<AppSettings>(&raw) else {
+        return false;
+    };
+    let Some(win) = settings.window else {
+        return false;
+    };
+
+    if let (Some(w), Some(h)) = (win.width, win.height) {
+        if w >= 400 && h >= 300 {
+            let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+        }
+    }
+    let mut positioned = false;
+    if let (Some(x), Some(y)) = (win.x, win.y) {
+        if x > -10000 && y > -10000 {
+            let on_screen = window
+                .available_monitors()
+                .map(|monitors| {
+                    monitors.into_iter().any(|m| {
+                        let pos = m.position();
+                        let size = m.size();
+                        x >= pos.x - 100
+                            && y >= pos.y - 100
+                            && x < pos.x + size.width as i32
+                            && y < pos.y + size.height as i32
+                    })
+                })
+                .unwrap_or(true);
+            if on_screen {
+                let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+                positioned = true;
+            }
+        }
+    }
+    if !positioned {
+        let _ = window.center();
+    }
+    win.maximized.unwrap_or(false)
+}
+
+#[tauri::command]
+fn show_in_explorer(path: String) -> Result<(), String> {
+    let target = Path::new(&path);
+    if !target.exists() {
+        return Err("File no longer exists on disk.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .args(["/select,", &path])
+            .spawn()
+            .map_err(|err| format!("Failed to open Explorer: {err}"))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .args(["-R", &path])
+            .spawn()
+            .map_err(|err| format!("Failed to open Finder: {err}"))?;
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let parent = target.parent().unwrap_or(target);
+        Command::new("xdg-open")
+            .arg(parent)
+            .spawn()
+            .map_err(|err| format!("Failed to open file manager: {err}"))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let trimmed = url.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    if !(lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("mailto:")) {
+        return Err("Unsupported URL scheme.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", trimmed])
+            .spawn()
+            .map_err(|err| format!("Failed to open URL: {err}"))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(trimmed)
+            .spawn()
+            .map_err(|err| format!("Failed to open URL: {err}"))?;
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(trimmed)
+            .spawn()
+            .map_err(|err| format!("Failed to open URL: {err}"))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn read_settings_file(app: tauri::AppHandle) -> Result<String, String> {
+    let Some(path) = resolve_settings_read_path(&app) else {
+        return Ok(String::new());
+    };
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    fs::read_to_string(path).map_err(|err| format!("Failed to read settings.json: {err}"))
+}
+
+#[tauri::command]
+fn write_settings_file(app: tauri::AppHandle, contents: String) -> Result<(), String> {
+    if let Some(install_dir) = install_settings_dir() {
+        let target = install_dir.join("settings.json");
+        if fs::write(&target, &contents).is_ok() {
+            return Ok(());
+        }
+    }
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|err| format!("Failed to resolve settings directory: {err}"))?;
+    fs::create_dir_all(&config_dir)
+        .map_err(|err| format!("Failed to create settings directory: {err}"))?;
+    fs::write(config_dir.join("settings.json"), contents)
+        .map_err(|err| format!("Failed to write settings.json: {err}"))
+}
+
+#[tauri::command]
+fn print_document(window: tauri::WebviewWindow) -> Result<(), String> {
+    window
+        .print()
+        .map_err(|err| format!("Failed to open print dialog: {err}"))
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                let blank_icon = tauri::image::Image::new_owned(vec![0, 0, 0, 0], 1, 1);
+                let _ = window.set_icon(blank_icon);
+                if window.is_minimized().unwrap_or(false) {
+                    let _ = window.unminimize();
+                }
+                let should_maximize = restore_window_from_settings(app, &window);
+                let _ = window.show();
+                if should_maximize {
+                    let _ = window.maximize();
+                }
+                let _ = window.set_focus();
+            }
+            Ok(())
+        })
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .invoke_handler(tauri::generate_handler![
+            show_in_explorer,
+            open_external_url,
+            print_document,
+            read_settings_file,
+            write_settings_file
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

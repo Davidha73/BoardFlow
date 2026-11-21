@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BoardFlow</title>
+    <link rel="stylesheet" href="./styles/theme.css" />
+    <link rel="stylesheet" href="./styles/editor.css" />
+    <link rel="stylesheet" href="./styles/print.css" />
+  </head>
+  <body>
+    <div class="app-shell" data-mode="board">
+      <header class="top-bar" role="banner">
+        <div class="menu-row">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">B</span>
+            <span class="brand-name">BoardFlow</span>
+            <button
+              type="button"
+              class="btn-more-dots"
+              id="btn-settings"
+              title="Settings"
+              aria-label="Open Settings"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+            >
+              <i data-lucide="ellipsis-vertical" class="lucide-sm"></i>
+            </button>
+          </div>
+
+          <div class="doc-pill" id="doc-pill">
+            <div class="doc-pill-menu-wrap" id="doc-pill-menu-wrap">
+              <button
+                type="button"
+                class="doc-pill-trigger"
+                id="doc-pill-trigger"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                title="Board Actions"
+              >
+                <span class="doc-pill-name" id="doc-pill-name">Untitled.board</span>
+                <span class="doc-pill-dirty" id="doc-pill-dirty" aria-hidden="true"></span>
+                <i data-lucide="chevron-down" class="lucide-xs"></i>
+              </button>
+
+              <nav class="doc-pill-popover" id="doc-pill-menu" role="menu" aria-label="Board actions">
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-new" title="New Board (Ctrl+N)">
+                  <i data-lucide="file-plus" class="lucide-xs"></i>
+                  <span>New</span>
+                  <span class="doc-pill-shortcut">Ctrl+N</span>
+                </button>
+                <div class="convert-menu-wrap" id="template-menu-wrap">
+                  <button
+                    type="button"
+                    class="doc-pill-item"
+                    role="menuitem"
+                    id="btn-new-template"
+                    title="Start from a Template"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                  >
+                    <i data-lucide="layout-template" class="lucide-xs"></i>
+                    <span>New from Template</span>
+                    <i data-lucide="chevron-down" class="lucide-xs doc-pill-subchevron"></i>
+                  </button>
+                  <div class="convert-popover" id="template-popover" role="menu" aria-label="New from template"></div>
+                </div>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-open" title="Open Board (Ctrl+O)">
+                  <i data-lucide="folder-open" class="lucide-xs"></i>
+                  <span>Open…</span>
+                  <span class="doc-pill-shortcut">Ctrl+O</span>
+                </button>
+                <div class="convert-menu-wrap" id="recent-menu-wrap">
+                  <button
+                    type="button"
+                    class="doc-pill-item"
+                    role="menuitem"
+                    id="btn-open-recent"
+                    title="Open Recent Board"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                  >
+                    <i data-lucide="clock" class="lucide-xs"></i>
+                    <span>Open Recent</span>
+                    <i data-lucide="chevron-down" class="lucide-xs doc-pill-subchevron"></i>
+                  </button>
+                  <div class="convert-popover" id="recent-popover" role="menu" aria-label="Recent boards"></div>
+                </div>
+                <div class="doc-pill-divider" role="separator"></div>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-save" title="Save (Ctrl+S)">
+                  <i data-lucide="save" class="lucide-xs"></i>
+                  <span>Save</span>
+                  <span class="doc-pill-shortcut">Ctrl+S</span>
+                </button>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-save-as" title="Save As (Ctrl+Shift+S)">
+                  <i data-lucide="file-down" class="lucide-xs"></i>
+                  <span>Save As…</span>
+                  <span class="doc-pill-shortcut">Ctrl+Shift+S</span>
+                </button>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-save-template" title="Save Current Board as Template">
+                  <i data-lucide="file-plus" class="lucide-xs"></i>
+                  <span>Save as Template…</span>
+                </button>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-duplicate" title="Make a Copy">
+                  <i data-lucide="copy" class="lucide-xs"></i>
+                  <span>Duplicate</span>
+                </button>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-rename" title="Rename Board">
+                  <i data-lucide="pencil" class="lucide-xs"></i>
+                  <span>Rename…</span>
+                </button>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-revert" title="Discard Changes and Reload Saved File">
+                  <i data-lucide="undo-2" class="lucide-xs"></i>
+                  <span>Revert to Saved</span>
+                </button>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-show-finder" title="Reveal File in Finder">
+                  <i data-lucide="folder-open" class="lucide-xs"></i>
+                  <span>Show in Finder</span>
+                </button>
+                <div class="doc-pill-divider" role="separator"></div>
+                <div class="convert-menu-wrap" id="convert-menu-wrap">
+                  <button
+                    type="button"
+                    class="doc-pill-item"
+                    role="menuitem"
+                    id="btn-convert"
+                    title="Export Board"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                  >
+                    <i data-lucide="arrow-left-right" class="lucide-xs"></i>
+                    <span>Export</span>
+                    <i data-lucide="chevron-down" class="lucide-xs doc-pill-subchevron"></i>
+                  </button>
+                  <div class="convert-popover" id="convert-popover" role="menu" aria-label="Export board">
+                    <button type="button" class="convert-menu-item" role="menuitem" data-export-format="png">
+                      Export as .png (Image)
+                    </button>
+                    <button type="button" class="convert-menu-item" role="menuitem" data-export-format="svg">
+                      Export as .svg (Vector)
+                    </button>
+                    <button type="button" class="convert-menu-item" role="menuitem" data-export-format="pdf">
+                      Export as .pdf (PDF)
+                    </button>
+                  </div>
+                </div>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-print" title="Print / Export PDF (Ctrl+P)">
+                  <i data-lucide="printer" class="lucide-xs"></i>
+                  <span>Print / PDF</span>
+                  <span class="doc-pill-shortcut">Ctrl+P</span>
+                </button>
+                <div class="doc-pill-divider" role="separator"></div>
+                <button type="button" class="doc-pill-item" role="menuitem" id="btn-close" title="Close Board (Ctrl+W)">
+                  <i data-lucide="file-x" class="lucide-xs"></i>
+                  <span>Close</span>
+                  <span class="doc-pill-shortcut">Ctrl+W</span>
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          <div class="header-right-actions">
+            <div class="frame-nav-wrap" id="frame-nav-wrap">
+              <button type="button" class="fmt-btn" id="btn-frame-nav" title="Jump to Frame" aria-label="Jump to Frame" aria-expanded="false">
+                <i data-lucide="frame" class="lucide-sm"></i>
+              </button>
+              <div class="frame-nav-popover" id="frame-nav-popover" role="menu" aria-label="Frames"></div>
+            </div>
+            <button type="button" class="fmt-btn" id="btn-fit-screen" title="Fit Board to Screen (Shift+1)" aria-label="Fit Board to Screen">
+              <i data-lucide="maximize-2" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-reset-view" title="Reset Pan &amp; Zoom (100%)" aria-label="Reset View">
+              <i data-lucide="rotate-ccw" class="lucide-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="format-toolbar dock-zone dock-top" id="dock-top" data-dock="top" role="toolbar" aria-label="Board tools">
+          <div class="toolbar-group" data-toolbar-id="edit" data-title="Edit">
+            <button type="button" class="fmt-btn" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+              <i data-lucide="undo-2" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-redo" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
+              <i data-lucide="redo-2" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-board-copy" title="Copy (Ctrl+C)" aria-label="Copy" disabled>
+              <i data-lucide="copy" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-board-paste" title="Paste (Ctrl+V)" aria-label="Paste" disabled>
+              <i data-lucide="clipboard-paste" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-board-duplicate" title="Duplicate (Ctrl+D)" aria-label="Duplicate" disabled>
+              <i data-lucide="copy-plus" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-board-delete" title="Delete (Del)" aria-label="Delete" disabled>
+              <i data-lucide="trash-2" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-format-painter" title="Format Painter (copy style to another shape)" aria-label="Format Painter" aria-pressed="false" disabled>
+              <i data-lucide="paintbrush" class="lucide-sm"></i>
+            </button>
+          </div>
+
+          <span class="toolbar-divider" aria-hidden="true"></span>
+
+          <div class="toolbar-group" data-toolbar-id="insert" data-title="Insert">
+            <button type="button" class="fmt-btn" id="btn-board-pen" title="Freehand Pen (P)" aria-label="Freehand Pen" aria-pressed="false">
+              <i data-lucide="pen-tool" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-board-highlighter" title="Highlighter (H)" aria-label="Highlighter" aria-pressed="false">
+              <i data-lucide="highlighter" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-board-eraser" title="Eraser (E)" aria-label="Eraser" aria-pressed="false">
+              <i data-lucide="eraser" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-insert-sticky" title="Insert Sticky Note" aria-label="Insert Sticky Note">
+              <i data-lucide="sticky-note" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-insert-text" title="Insert Text Box" aria-label="Insert Text Box">
+              <i data-lucide="type" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-insert-frame" title="Insert Frame / Section" aria-label="Insert Frame">
+              <i data-lucide="frame" class="lucide-sm"></i>
+            </button>
+            <div class="shapes-insert-wrap" id="shapes-insert-wrap">
+              <button type="button" class="fmt-btn" id="btn-insert-shape" title="Insert Shape" aria-label="Insert Shape">
+                <i data-lucide="shapes" class="lucide-sm"></i>
+                <i data-lucide="chevron-down" class="lucide-xs"></i>
+              </button>
+              <div class="shapes-popover" id="shapes-popover" role="menu" aria-label="Insert shape">
+                <button type="button" class="shape-menu-item" data-shape-type="rect">
+                  <i data-lucide="square" class="lucide-xs"></i>
+                  <span>Rectangle</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="rounded-rect">
+                  <i data-lucide="square" class="lucide-xs"></i>
+                  <span>Rounded Rectangle</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="ellipse">
+                  <i data-lucide="circle" class="lucide-xs"></i>
+                  <span>Circle / Oval</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="triangle">
+                  <i data-lucide="triangle" class="lucide-xs"></i>
+                  <span>Triangle</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="diamond">
+                  <i data-lucide="diamond" class="lucide-xs"></i>
+                  <span>Diamond</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="hexagon">
+                  <i data-lucide="hexagon" class="lucide-xs"></i>
+                  <span>Hexagon</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="star">
+                  <i data-lucide="star" class="lucide-xs"></i>
+                  <span>Star</span>
+                </button>
+                <div class="doc-pill-divider" role="separator"></div>
+                <button type="button" class="shape-menu-item" data-shape-type="terminator">
+                  <i data-lucide="square" class="lucide-xs"></i>
+                  <span>Terminator (Start/End)</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="parallelogram">
+                  <i data-lucide="shapes" class="lucide-xs"></i>
+                  <span>Input / Output</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="document">
+                  <i data-lucide="file-text" class="lucide-xs"></i>
+                  <span>Document</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="database">
+                  <i data-lucide="database" class="lucide-xs"></i>
+                  <span>Database</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="subroutine">
+                  <i data-lucide="columns-2" class="lucide-xs"></i>
+                  <span>Subroutine</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="cloud">
+                  <i data-lucide="cloud" class="lucide-xs"></i>
+                  <span>Cloud</span>
+                </button>
+                <div class="doc-pill-divider" role="separator"></div>
+                <button type="button" class="shape-menu-item" data-shape-type="line">
+                  <i data-lucide="minus" class="lucide-xs"></i>
+                  <span>Line</span>
+                </button>
+                <button type="button" class="shape-menu-item" data-shape-type="arrow">
+                  <i data-lucide="arrow-up-right" class="lucide-xs"></i>
+                  <span>Arrow</span>
+                </button>
+              </div>
+            </div>
+            <button type="button" class="fmt-btn" id="btn-insert-image" title="Insert Image" aria-label="Insert Image">
+              <i data-lucide="image" class="lucide-sm"></i>
+            </button>
+            <input type="file" id="image-file-input" accept="image/*" hidden />
+          </div>
+
+          <span class="toolbar-divider" aria-hidden="true"></span>
+
+          <div class="toolbar-group" data-toolbar-id="arrange" data-title="Arrange">
+            <button type="button" class="fmt-btn" id="btn-board-pan" title="Pan Canvas (or hold Space + Drag)" aria-label="Pan Canvas" aria-pressed="false">
+              <i data-lucide="hand" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-shape-marquee" title="Select Objects" aria-label="Select Objects" aria-pressed="false">
+              <i data-lucide="box-select" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-shape-group" title="Group Selected Objects (Ctrl+G)" aria-label="Group Selected Objects" disabled>
+              <i data-lucide="group" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-shape-ungroup" title="Ungroup Objects (Ctrl+Shift+G)" aria-label="Ungroup Objects" disabled>
+              <i data-lucide="ungroup" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-arrange-front" data-arrange-order="front" title="Bring to Front" aria-label="Bring to Front" disabled>
+              <i data-lucide="bring-to-front" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-arrange-forward" data-arrange-order="forward" title="Bring Forward" aria-label="Bring Forward" disabled>
+              <i data-lucide="layers-arrow-up" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-arrange-backward" data-arrange-order="backward" title="Send Backward" aria-label="Send Backward" disabled>
+              <i data-lucide="layers-arrow-down" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-arrange-back" data-arrange-order="back" title="Send to Back" aria-label="Send to Back" disabled>
+              <i data-lucide="send-to-back" class="lucide-sm"></i>
+            </button>
+            <button type="button" class="fmt-btn" id="btn-board-copy-png" title="Copy Selection as PNG (for pasting into WordFlow)" aria-label="Copy as PNG">
+              <i data-lucide="clipboard-copy" class="lucide-sm"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="workspace-row">
+        <aside class="dock-zone dock-side dock-left" id="dock-left" data-dock="left" aria-label="Left toolbar dock"></aside>
+        <main class="workspace board-workspace" id="workspace" role="main">
+          <div id="recent-docs-view" class="recent-docs-view"></div>
+
+          <div class="board-viewport" id="board-viewport" data-grid="true">
+            <div class="board-stage" id="board-stage">
+              <div class="board-shapes-layer" id="board-shapes-layer"></div>
+            </div>
+
+            <div class="shape-mini-toolbar" id="shape-mini-toolbar" role="toolbar" aria-label="Shape actions">
+              <div class="shape-mini-row shape-mini-row-top">
+                <div class="shape-color-dropdown" id="shape-fill-dropdown">
+                  <button type="button" class="mini-btn shape-picker-trigger" id="btn-shape-fill">
+                    <span>Fill</span>
+                    <span class="shape-swatch-bar" id="shape-fill-indicator"></span>
+                  </button>
+                  <div class="shape-color-popover" id="shape-fill-popover">
+                    <button type="button" class="shape-none-btn" data-shape-fill="none">No Fill</button>
+                    <div class="shape-swatches-grid" id="shape-fill-grid"></div>
+                  </div>
+                </div>
+
+                <div class="shape-color-dropdown" id="shape-border-dropdown">
+                  <button type="button" class="mini-btn shape-picker-trigger" id="btn-shape-border">
+                    <span>Border</span>
+                    <span class="shape-swatch-bar" id="shape-border-indicator"></span>
+                  </button>
+                  <div class="shape-color-popover" id="shape-border-popover">
+                    <button type="button" class="shape-none-btn" data-shape-border="none">No Border</button>
+                    <div class="shape-swatches-grid" id="shape-border-grid"></div>
+                    <div class="shape-border-section">
+                      <span class="shape-border-label">Thickness</span>
+                      <div class="shape-border-options">
+                        <button type="button" class="shape-opt-btn" data-shape-width="1">1px</button>
+                        <button type="button" class="shape-opt-btn is-active" data-shape-width="2">2px</button>
+                        <button type="button" class="shape-opt-btn" data-shape-width="4">4px</button>
+                        <button type="button" class="shape-opt-btn" data-shape-width="6">6px</button>
+                      </div>
+                    </div>
+                    <div class="shape-border-section">
+                      <span class="shape-border-label">Style</span>
+                      <div class="shape-border-options">
+                        <button type="button" class="shape-opt-btn is-active" data-shape-style="solid">Solid</button>
+                        <button type="button" class="shape-opt-btn" data-shape-style="dashed">Dashed</button>
+                        <button type="button" class="shape-opt-btn" data-shape-style="dotted">Dotted</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="shape-color-dropdown" id="shape-effects-dropdown">
+                  <button type="button" class="mini-btn" id="btn-shape-effects">Effects ▾</button>
+                  <div class="shape-effects-popover" id="shape-effects-popover">
+                    <div class="shape-border-section shape-effects-first">
+                      <div class="shape-effects-header-row">
+                        <span class="shape-border-label">Transparency</span>
+                        <span class="shape-effects-val" id="shape-opacity-value">100%</span>
+                      </div>
+                      <input type="range" id="shape-opacity-range" class="shape-opacity-slider" min="10" max="100" step="5" value="100" aria-label="Shape opacity" />
+                      <div class="shape-border-options">
+                        <button type="button" class="shape-opt-btn is-active" data-shape-opacity="1">100%</button>
+                        <button type="button" class="shape-opt-btn" data-shape-opacity="0.75">75%</button>
+                        <button type="button" class="shape-opt-btn" data-shape-opacity="0.5">50%</button>
+                        <button type="button" class="shape-opt-btn" data-shape-opacity="0.25">25%</button>
+                      </div>
+                    </div>
+                    <div class="shape-border-section">
+                      <span class="shape-border-label">Drop Shadow</span>
+                      <div class="shape-border-options">
+                        <button type="button" class="shape-opt-btn is-active" data-shape-shadow="none">None</button>
+                        <button type="button" class="shape-opt-btn" data-shape-shadow="soft">Soft</button>
+                        <button type="button" class="shape-opt-btn" data-shape-shadow="medium">Medium</button>
+                        <button type="button" class="shape-opt-btn" data-shape-shadow="strong">Strong</button>
+                      </div>
+                    </div>
+                    <div class="shape-border-section" id="shape-gradient-section">
+                      <div class="shape-effects-header-row">
+                        <span class="shape-border-label">Gradient Fill</span>
+                        <button type="button" class="shape-opt-btn" id="btn-shape-grad-clear">Solid</button>
+                      </div>
+                      <div class="shape-grad-presets">
+                        <button type="button" class="shape-grad-swatch shape-grad-preset-1" data-grad-start="#3b82f6" data-grad-end="#1d4ed8" title="Ocean Blue"></button>
+                        <button type="button" class="shape-grad-swatch shape-grad-preset-2" data-grad-start="#a855f7" data-grad-end="#ec4899" title="Violet Pink"></button>
+                        <button type="button" class="shape-grad-swatch shape-grad-preset-3" data-grad-start="#f59e0b" data-grad-end="#ef4444" title="Sunset"></button>
+                        <button type="button" class="shape-grad-swatch shape-grad-preset-4" data-grad-start="#10b981" data-grad-end="#0d9488" title="Emerald"></button>
+                        <button type="button" class="shape-grad-swatch shape-grad-preset-5" data-grad-start="#f8fafc" data-grad-end="#cbd5e1" title="Silver"></button>
+                      </div>
+                      <div class="shape-grad-custom-row">
+                        <label class="shape-grad-color-field"><span>From</span><input type="color" id="shape-grad-start" value="#3b82f6" /></label>
+                        <label class="shape-grad-color-field"><span>To</span><input type="color" id="shape-grad-end" value="#1d4ed8" /></label>
+                      </div>
+                      <div class="shape-border-options">
+                        <button type="button" class="shape-opt-btn is-active" data-grad-angle="135">↘</button>
+                        <button type="button" class="shape-opt-btn" data-grad-angle="90">↓</button>
+                        <button type="button" class="shape-opt-btn" data-grad-angle="0">→</button>
+                        <button type="button" class="shape-opt-btn" data-grad-angle="45">↗</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="shape-color-dropdown" id="shape-align-dropdown">
+                  <button type="button" class="mini-btn" id="btn-shape-align">Align ▾</button>
+                  <div class="shape-align-popover" id="shape-align-popover">
+                    <button type="button" class="shape-menu-item" data-shape-align="left">Align Left</button>
+                    <button type="button" class="shape-menu-item" data-shape-align="center">Align Center</button>
+                    <button type="button" class="shape-menu-item" data-shape-align="right">Align Right</button>
+                    <button type="button" class="shape-menu-item" data-shape-align="top">Align Top</button>
+                    <button type="button" class="shape-menu-item" data-shape-align="middle">Align Middle</button>
+                    <button type="button" class="shape-menu-item" data-shape-align="bottom">Align Bottom</button>
+                    <button type="button" class="shape-menu-item" data-shape-align="dist-h">Distribute Horizontally</button>
+                    <button type="button" class="shape-menu-item" data-shape-align="dist-v">Distribute Vertically</button>
+                  </div>
+                </div>
+
+                <div class="shape-color-dropdown" id="shape-corners-dropdown">
+                  <button type="button" class="mini-btn" id="btn-shape-corners">Corners ▾</button>
+                  <div class="shape-align-popover" id="shape-corners-popover">
+                    <button type="button" class="shape-menu-item" data-shape-radius="0">0px (Sharp)</button>
+                    <button type="button" class="shape-menu-item" data-shape-radius="6">6px</button>
+                    <button type="button" class="shape-menu-item" data-shape-radius="12">12px</button>
+                    <button type="button" class="shape-menu-item" data-shape-radius="24">24px</button>
+                  </div>
+                </div>
+
+                <div class="shape-color-dropdown" id="shape-ends-dropdown">
+                  <button type="button" class="mini-btn" id="btn-shape-ends">Ends ▾</button>
+                  <div class="shape-align-popover" id="shape-ends-popover">
+                    <button type="button" class="shape-menu-item" data-shape-ends="none">None (Line)</button>
+                    <button type="button" class="shape-menu-item" data-shape-ends="end">End Arrow →</button>
+                    <button type="button" class="shape-menu-item" data-shape-ends="start">Start Arrow ←</button>
+                    <button type="button" class="shape-menu-item" data-shape-ends="both">Both Arrows ↔</button>
+                    <div class="shape-border-section">
+                      <span class="shape-border-label">Path</span>
+                      <div class="shape-border-options">
+                        <button type="button" class="shape-opt-btn is-active" data-line-curve="straight">Straight</button>
+                        <button type="button" class="shape-opt-btn" data-line-curve="curved">Curved</button>
+                        <button type="button" class="shape-opt-btn" data-line-curve="elbow">Elbow</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button type="button" class="mini-btn shape-lock-btn" id="btn-shape-lock" title="Lock / Unlock Position" aria-pressed="false">
+                  <i data-lucide="lock" class="lucide-xs"></i>
+                </button>
+                <button type="button" class="mini-btn" id="btn-mini-format-painter" title="Copy Format to Another Shape" aria-label="Format Painter">
+                  <i data-lucide="paintbrush" class="lucide-xs"></i>
+                </button>
+                <button type="button" class="mini-btn" id="btn-mini-duplicate" title="Duplicate (Ctrl+D)" aria-label="Duplicate">
+                  <i data-lucide="copy-plus" class="lucide-xs"></i>
+                </button>
+                <button type="button" class="mini-btn" id="btn-mini-delete" title="Delete (Del)" aria-label="Delete">
+                  <i data-lucide="trash-2" class="lucide-xs"></i>
+                </button>
+              </div>
+
+              <div class="shape-mini-row shape-mini-row-bottom">
+                <label class="mini-btn shape-text-toggle" title="Enable text inside shape">
+                  <input type="checkbox" id="chk-shape-text" />
+                  <span>Text</span>
+                </label>
+
+                <select class="mini-btn shape-font-select shape-font-family-select" id="shape-font-family" title="Font Family" aria-label="Font Family">
+                  <option value='-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'>System</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value='"Helvetica Neue", Helvetica, sans-serif'>Helvetica Neue</option>
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value='"Times New Roman", serif'>Times New Roman</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                  <option value='"Trebuchet MS", sans-serif'>Trebuchet MS</option>
+                  <option value='"Courier New", monospace'>Courier New</option>
+                </select>
+                <select class="mini-btn shape-font-select" id="shape-font-size" title="Text Size" aria-label="Text Size">
+                  <option value="10">10</option>
+                  <option value="11">11</option>
+                  <option value="12">12</option>
+                  <option value="13">13</option>
+                  <option value="14" selected>14</option>
+                  <option value="16">16</option>
+                  <option value="18">18</option>
+                  <option value="20">20</option>
+                  <option value="24">24</option>
+                  <option value="28">28</option>
+                  <option value="32">32</option>
+                  <option value="36">36</option>
+                  <option value="48">48</option>
+                </select>
+                <input type="color" class="shape-text-color-input" id="shape-text-color" value="#1a1a1a" title="Text Color" aria-label="Text Color" />
+                <button type="button" class="mini-btn shape-bold-btn" id="btn-shape-bold" title="Bold Text" aria-pressed="false">
+                  <i data-lucide="bold" class="lucide-xs"></i>
+                </button>
+                <div class="shape-text-align-group" id="shape-text-align-group" role="group" aria-label="Text alignment">
+                  <button type="button" class="mini-btn shape-text-align-btn" data-shape-text-align="left" title="Align Text Left" aria-label="Align Text Left">
+                    <i data-lucide="text-align-start" class="lucide-xs"></i>
+                  </button>
+                  <button type="button" class="mini-btn shape-text-align-btn" data-shape-text-align="center" title="Align Text Center" aria-label="Align Text Center">
+                    <i data-lucide="text-align-center" class="lucide-xs"></i>
+                  </button>
+                  <button type="button" class="mini-btn shape-text-align-btn" data-shape-text-align="right" title="Align Text Right" aria-label="Align Text Right">
+                    <i data-lucide="text-align-end" class="lucide-xs"></i>
+                  </button>
+                </div>
+                <div class="shape-text-align-group" id="shape-text-valign-group" role="group" aria-label="Vertical text alignment">
+                  <button type="button" class="mini-btn shape-text-align-btn" data-shape-text-valign="top" title="Align Text Top" aria-label="Align Text Top">
+                    <i data-lucide="align-vertical-justify-start" class="lucide-xs"></i>
+                  </button>
+                  <button type="button" class="mini-btn shape-text-align-btn" data-shape-text-valign="middle" title="Align Text Middle" aria-label="Align Text Middle">
+                    <i data-lucide="align-vertical-justify-center" class="lucide-xs"></i>
+                  </button>
+                  <button type="button" class="mini-btn shape-text-align-btn" data-shape-text-valign="bottom" title="Align Text Bottom" aria-label="Align Text Bottom">
+                    <i data-lucide="align-vertical-justify-end" class="lucide-xs"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="draw-options-bar" id="draw-options-bar" role="toolbar" aria-label="Drawing options">
+              <div class="draw-color-swatches" id="draw-color-swatches">
+                <button type="button" class="draw-color-dot draw-color-black is-active" data-draw-color="#1a1a1a" title="Black"></button>
+                <button type="button" class="draw-color-dot draw-color-blue" data-draw-color="#2563eb" title="Blue"></button>
+                <button type="button" class="draw-color-dot draw-color-red" data-draw-color="#dc2626" title="Red"></button>
+                <button type="button" class="draw-color-dot draw-color-green" data-draw-color="#16a34a" title="Green"></button>
+                <button type="button" class="draw-color-dot draw-color-amber" data-draw-color="#eab308" title="Yellow"></button>
+                <button type="button" class="draw-color-dot draw-color-purple" data-draw-color="#9333ea" title="Purple"></button>
+              </div>
+              <div class="draw-width-options">
+                <button type="button" class="shape-opt-btn is-active" data-draw-size="sm" title="Thin">S</button>
+                <button type="button" class="shape-opt-btn" data-draw-size="md" title="Medium">M</button>
+                <button type="button" class="shape-opt-btn" data-draw-size="lg" title="Thick">L</button>
+              </div>
+              <div class="draw-tip-options" id="draw-tip-options">
+                <button type="button" class="shape-opt-btn is-active" data-draw-tip="round" title="Round Tip">Round</button>
+                <button type="button" class="shape-opt-btn" data-draw-tip="square" title="Chisel / Square Tip">Chisel</button>
+                <button type="button" class="shape-opt-btn" data-draw-tip="dashed" title="Dashed Pen">Dashed</button>
+                <button type="button" class="shape-opt-btn" data-draw-tip="dotted" title="Dotted Pen">Dotted</button>
+                <button type="button" class="shape-opt-btn" data-draw-tip="line" title="Straight Line (or hold Shift)">Line</button>
+              </div>
+            </div>
+
+            <canvas class="board-minimap" id="board-minimap" width="160" height="108" aria-label="Board minimap"></canvas>
+
+            <div class="canvas-context-menu" id="canvas-context-menu" role="menu" aria-label="Canvas actions">
+              <button type="button" class="canvas-context-item" data-canvas-action="paste" disabled>Paste Here</button>
+              <div class="canvas-context-divider"></div>
+              <button type="button" class="canvas-context-item" data-canvas-action="sticky">Add Sticky Note</button>
+              <button type="button" class="canvas-context-item" data-canvas-action="text">Add Text Box</button>
+              <button type="button" class="canvas-context-item" data-canvas-action="frame">Add Frame</button>
+              <div class="canvas-context-divider"></div>
+              <button type="button" class="canvas-context-item" data-canvas-action="select-all">Select All</button>
+              <button type="button" class="canvas-context-item" data-canvas-action="fit-view">Fit View</button>
+              <button type="button" class="canvas-context-item" data-canvas-action="reset-view">Reset View</button>
+            </div>
+          </div>
+        </main>
+        <aside class="dock-zone dock-side dock-right" id="dock-right" data-dock="right" aria-label="Right toolbar dock"></aside>
+      </div>
+
+      <footer class="status-bar" role="contentinfo">
+        <div class="status-left">
+          <span class="status-item" id="status-filename" title="Current board">Untitled.board</span>
+          <span class="status-badge status-autosave is-off" id="status-autosave" title="Auto-Save status">Auto-Save: Off</span>
+        </div>
+
+        <div class="status-right">
+          <span class="status-item" id="status-items">0 items</span>
+          <button type="button" class="zoom-btn focus-mode-btn" id="btn-focus-mode" title="Focus Mode (Ctrl+Shift+F)" aria-label="Toggle Focus Mode" aria-pressed="false">
+            <i data-lucide="scan-eye" class="lucide-xs"></i>
+          </button>
+          <div class="zoom-controls" aria-label="Board zoom">
+            <button type="button" class="zoom-btn" id="btn-zoom-out" title="Zoom Out" aria-label="Zoom Out">
+              <i data-lucide="minus" class="lucide-xs"></i>
+            </button>
+            <input type="range" class="zoom-slider" id="zoom-slider" min="25" max="300" step="10" value="100" aria-label="Zoom percentage" />
+            <button type="button" class="zoom-btn" id="btn-zoom-in" title="Zoom In" aria-label="Zoom In">
+              <i data-lucide="plus" class="lucide-xs"></i>
+            </button>
+            <button type="button" class="zoom-value" id="btn-zoom-reset" title="Reset Zoom (100%)">100%</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="settings-backdrop" id="settings-backdrop" aria-hidden="true"></div>
+    <aside class="settings-drawer" id="settings-drawer" role="dialog" aria-modal="true" aria-label="Settings" aria-hidden="true">
+      <div class="settings-drawer-header">
+        <span class="settings-drawer-title">Settings</span>
+        <button type="button" class="btn-close-settings" id="btn-close-settings" aria-label="Close Settings" title="Close">
+          <i data-lucide="x" class="lucide-sm"></i>
+        </button>
+      </div>
+      <div class="settings-drawer-body" id="settings-drawer-body">
+        <div class="settings-section-header">Startup &amp; Files</div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-start-in">Start In</label>
+          <select id="settings-start-in" class="settings-select">
+            <option value="start-page">Start Page</option>
+            <option value="board" selected>Board</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-autosave">Auto-Save</label>
+          <select id="settings-autosave" class="settings-select">
+            <option value="0" selected>Off</option>
+            <option value="30">Every 30 seconds</option>
+            <option value="60">Every 1 minute</option>
+            <option value="300">Every 5 minutes</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Recent Boards</span>
+          <div class="settings-action-group">
+            <span class="settings-inline-status" id="settings-clear-recent-status"></span>
+            <button type="button" class="settings-footer-btn" id="btn-settings-clear-recent">Clear List</button>
+          </div>
+        </div>
+
+        <div class="settings-section-header">Canvas &amp; View</div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-default-zoom">Default Zoom</label>
+          <select id="settings-default-zoom" class="settings-select">
+            <option value="50">50%</option>
+            <option value="75">75%</option>
+            <option value="100" selected>100%</option>
+            <option value="125">125%</option>
+            <option value="150">150%</option>
+            <option value="200">200%</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-grid-enabled">Show Dot Grid</label>
+          <input type="checkbox" id="settings-grid-enabled" class="settings-switch" checked />
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-snap-grid">Snap to Grid</label>
+          <input type="checkbox" id="settings-snap-grid" class="settings-switch" />
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-grid-size">Grid Spacing</label>
+          <select id="settings-grid-size" class="settings-select">
+            <option value="12">12px (Fine)</option>
+            <option value="24" selected>24px (Default)</option>
+            <option value="48">48px (Wide)</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-align-guides">Smart Alignment Guides</label>
+          <input type="checkbox" id="settings-align-guides" class="settings-switch" checked />
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-minimap-enabled">Show Minimap</label>
+          <input type="checkbox" id="settings-minimap-enabled" class="settings-switch" checked />
+        </div>
+
+        <div class="settings-section-header">Appearance &amp; Workspace</div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-theme">UI Theme</label>
+          <select id="settings-theme" class="settings-select">
+            <option value="light" selected>Light</option>
+            <option value="dark">Dark</option>
+            <option value="system">System (Auto)</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Workspace Layout</span>
+          <div class="settings-action-group">
+            <span class="settings-inline-status" id="settings-reset-layout-status"></span>
+            <button type="button" class="settings-footer-btn" id="btn-settings-reset-layout">Reset Layout</button>
+          </div>
+        </div>
+
+        <div class="settings-section-header">Maintenance</div>
+        <div class="settings-row">
+          <span class="settings-label">Bugs &amp; Updates</span>
+          <button type="button" class="settings-footer-btn" id="btn-open-notes">Open Log…</button>
+        </div>
+      </div>
+      <div class="settings-drawer-footer">
+        <span class="settings-version" id="settings-version">v0.1.0</span>
+        <button type="button" class="settings-footer-btn" id="btn-cancel-settings">Cancel</button>
+        <button type="button" class="settings-footer-btn is-primary" id="btn-save-settings">Save</button>
+      </div>
+    </aside>
+
+    <div class="notes-modal-backdrop" id="notes-modal-backdrop" aria-hidden="true"></div>
+    <section class="notes-modal" id="notes-modal" role="dialog" aria-modal="true" aria-label="Bugs and Updates Log" aria-hidden="true">
+      <div class="notes-modal-header">
+        <span class="settings-drawer-title">Bugs &amp; Updates Log</span>
+        <button type="button" class="settings-close-btn" id="btn-close-notes" title="Close" aria-label="Close">
+          <i data-lucide="x" class="lucide-sm"></i>
+        </button>
+      </div>
+      <div class="notes-modal-body">
+        <textarea id="notes-modal-textarea" class="notes-modal-textarea" placeholder="Record bugs, notes, and updates here..."></textarea>
+      </div>
+      <div class="notes-modal-footer">
+        <span class="notes-modal-status" id="notes-modal-status"></span>
+        <button type="button" class="settings-footer-btn" id="btn-export-notes">Save As…</button>
+        <button type="button" class="settings-footer-btn is-primary" id="btn-save-notes">Save</button>
+      </div>
+    </section>
+
+    <div class="prompt-modal-backdrop" id="rename-modal-backdrop" aria-hidden="true"></div>
+    <section class="prompt-modal" id="rename-modal" role="dialog" aria-modal="true" aria-label="Rename Board" aria-hidden="true">
+      <div class="prompt-modal-header">
+        <span class="settings-drawer-title">Rename Board</span>
+        <button type="button" class="settings-close-btn" id="btn-close-rename" title="Close" aria-label="Close">
+          <i data-lucide="x" class="lucide-sm"></i>
+        </button>
+      </div>
+      <div class="prompt-modal-body">
+        <label class="prompt-modal-field">
+          <span>New File Name</span>
+          <input type="text" id="rename-input" class="prompt-modal-input" placeholder="Untitled.board" />
+        </label>
+      </div>
+      <div class="prompt-modal-footer">
+        <button type="button" class="settings-footer-btn" id="btn-cancel-rename">Cancel</button>
+        <button type="button" class="settings-footer-btn is-primary" id="btn-confirm-rename">Rename</button>
+      </div>
+    </section>
+
+    <div class="prompt-modal-backdrop" id="template-modal-backdrop" aria-hidden="true"></div>
+    <section class="prompt-modal" id="template-modal" role="dialog" aria-modal="true" aria-label="Save as Template" aria-hidden="true">
+      <div class="prompt-modal-header">
+        <span class="settings-drawer-title">Save as Template</span>
+        <button type="button" class="settings-close-btn" id="btn-close-template" title="Close" aria-label="Close">
+          <i data-lucide="x" class="lucide-sm"></i>
+        </button>
+      </div>
+      <div class="prompt-modal-body">
+        <label class="prompt-modal-field">
+          <span>Template Name</span>
+          <input type="text" id="template-name-input" class="prompt-modal-input" placeholder="e.g. Sprint Planning Board" />
+        </label>
+        <label class="prompt-modal-field">
+          <span>Short Description (optional)</span>
+          <input type="text" id="template-desc-input" class="prompt-modal-input" placeholder="e.g. Columns &amp; sticky notes" />
+        </label>
+      </div>
+      <div class="prompt-modal-footer">
+        <button type="button" class="settings-footer-btn" id="btn-cancel-template">Cancel</button>
+        <button type="button" class="settings-footer-btn is-primary" id="btn-confirm-template">Save Template</button>
+      </div>
+    </section>
+
+    <div class="dict-modal-backdrop" id="all-templates-modal-backdrop" aria-hidden="true"></div>
+    <section class="all-templates-modal" id="all-templates-modal" role="dialog" aria-modal="true" aria-label="All Templates" aria-hidden="true">
+      <div class="dict-modal-header">
+        <span class="settings-drawer-title">All Templates</span>
+        <button type="button" class="settings-close-btn" id="btn-close-all-templates" title="Close" aria-label="Close">
+          <i data-lucide="x" class="lucide-sm"></i>
+        </button>
+      </div>
+      <div class="all-templates-modal-body">
+        <div class="recent-templates-grid" id="all-templates-grid"></div>
+      </div>
+      <div class="dict-modal-footer">
+        <button type="button" class="settings-footer-btn is-primary" id="btn-done-all-templates">Done</button>
+      </div>
+    </section>
+
+    <div class="dict-modal-backdrop" id="all-recents-modal-backdrop" aria-hidden="true"></div>
+    <section class="all-templates-modal" id="all-recents-modal" role="dialog" aria-modal="true" aria-label="All Recent Boards" aria-hidden="true">
+      <div class="dict-modal-header">
+        <span class="settings-drawer-title">Recent Boards</span>
+        <button type="button" class="settings-close-btn" id="btn-close-all-recents" title="Close" aria-label="Close">
+          <i data-lucide="x" class="lucide-sm"></i>
+        </button>
+      </div>
+      <div class="all-templates-modal-body">
+        <div class="recent-docs-list" id="all-recents-list" role="list"></div>
+      </div>
+      <div class="dict-modal-footer">
+        <button type="button" class="settings-footer-btn is-primary" id="btn-done-all-recents">Done</button>
+      </div>
+    </section>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
