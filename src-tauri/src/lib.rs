@@ -4,6 +4,11 @@ use std::process::Command;
 use serde::Deserialize;
 use tauri::Manager;
 
+#[path = "../../../FlowDash/src-tauri/src/grammar.rs"]
+mod grammar;
+#[path = "../../../FlowDash/src-tauri/src/spellcheck.rs"]
+mod spellcheck;
+
 #[derive(Deserialize)]
 struct WindowSettings {
     width: Option<u32>,
@@ -326,7 +331,13 @@ pub fn run() {
             write_settings_file,
             write_flow_handoff,
             consume_flow_handoff,
-            return_to_flowdash
+            return_to_flowdash,
+            spellcheck::check_word_spelling,
+            spellcheck::add_word_to_dictionary,
+            spellcheck::get_custom_dictionary,
+            spellcheck::remove_word_from_dictionary,
+            spellcheck::clear_custom_dictionary,
+            grammar::check_grammar
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,6 +5,7 @@
  */
 
 import { writeFlowClipboard } from './flowLink.js';
+import { attachLiveSpellcheck, openBoardSpellingMenu } from './spellcheckHelper.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -769,6 +770,7 @@ export function createBoardCanvas({
     })();
     labelEl.classList.add('is-editing');
     labelEl.contentEditable = 'true';
+    const detachSpellcheck = attachLiveSpellcheck(labelEl);
     labelEl.focus();
     const sel = window.getSelection();
     const range = document.createRange();
@@ -793,6 +795,7 @@ export function createBoardCanvas({
       labelEl.removeEventListener('input', onInput);
       labelEl.removeEventListener('keydown', onKeyDown);
       labelEl.removeEventListener('blur', commit);
+      detachSpellcheck();
       labelEl.classList.remove('is-editing');
       labelEl.contentEditable = 'false';
       shape.label = labelEl.innerText.trim();
@@ -1361,6 +1364,22 @@ export function createBoardCanvas({
   viewportEl?.addEventListener('contextmenu', (event) => {
     event.preventDefault();
     if (dragOp || event.ctrlKey) return;
+    if (event.target?.isContentEditable) {
+      const editableEl = event.target.closest('[contenteditable="true"]');
+      if (editableEl) {
+        openBoardSpellingMenu(event.clientX, event.clientY, editableEl, {
+          onMutate: () => {
+            const shapeEl = editableEl.closest('.word-shape');
+            const shape = shapes.find((s) => s.id === shapeEl?.dataset.shapeId);
+            if (shape) {
+              shape.label = editableEl.innerText.trim();
+              onMutate?.();
+            }
+          },
+        });
+      }
+      return;
+    }
     const shapeEl = event.target.closest('.word-shape');
     if (!shapeEl) {
       hideMiniBar();
@@ -1615,8 +1634,10 @@ export function createBoardCanvas({
       }
       labelEl.classList.add('is-editing');
       labelEl.contentEditable = 'true';
+      const detachLineSpell = attachLiveSpellcheck(labelEl);
       labelEl.focus();
       const commit = () => {
+        detachLineSpell();
         labelEl.classList.remove('is-editing');
         labelEl.contentEditable = 'false';
         const prev = snapshot();
@@ -1638,11 +1659,13 @@ export function createBoardCanvas({
       if (!titleEl) return;
       const prev = snapshot();
       titleEl.contentEditable = 'true';
+      const detachFrameSpell = attachLiveSpellcheck(titleEl);
       titleEl.focus();
       const onInput = () => {
         shape.label = titleEl.innerText.trim() || 'Frame';
       };
       const commit = () => {
+        detachFrameSpell();
         titleEl.removeEventListener('input', onInput);
         titleEl.removeEventListener('blur', commit);
         titleEl.contentEditable = 'false';
