@@ -4,6 +4,8 @@
  * grouping, layering, effects, sticky notes, images, undo/redo, PNG/SVG export).
  */
 
+import { writeFlowClipboard } from './flowLink.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const PALETTE = [
@@ -2402,10 +2404,45 @@ export function createBoardCanvas({
     onMutate?.();
   }
 
+  function serializeShapesForFlow(targets) {
+    const supported = new Set(['rect', 'ellipse', 'diamond', 'line', 'arrow', 'image', 'sticky', 'frame', 'text']);
+    return (targets || [])
+      .filter((s) => supported.has(s.type))
+      .map((s) => {
+        const copy = JSON.parse(JSON.stringify(s));
+        if (copy.type === 'sticky') {
+          copy.type = 'rect';
+          copy.cornerRadius = copy.cornerRadius ?? 6;
+          copy.shadow = copy.shadow || 'soft';
+          copy.textEnabled = true;
+        } else if (copy.type === 'frame') {
+          copy.type = 'rect';
+          copy.fillColor = 'none';
+          copy.strokeColor = copy.strokeColor && copy.strokeColor !== 'none' ? copy.strokeColor : '#94a3b8';
+          copy.strokeStyle = 'dashed';
+          copy.strokeWidth = 1.5;
+          copy.cornerRadius = 8;
+          copy.textEnabled = Boolean(copy.label);
+        } else if (copy.type === 'text') {
+          copy.type = 'rect';
+          copy.fillColor = 'none';
+          copy.strokeColor = 'none';
+          copy.textEnabled = true;
+          copy.textAlign = copy.textAlign || 'left';
+        }
+        return copy;
+      });
+  }
+
   function copySelected() {
     if (selectedIds.size === 0) return;
     clipboard = JSON.parse(JSON.stringify(expandWithFrameContents(getSelectedShapes())));
     if (pasteBtnEl) pasteBtnEl.disabled = clipboard.length === 0;
+    const flowShapes = serializeShapesForFlow(clipboard);
+    if (flowShapes.length > 0) {
+      const fallbackText = clipboard.map((s) => s.label).filter(Boolean).join('\n');
+      writeFlowClipboard({ flowSuite: 1, source: 'boardflow', kind: 'shapes', shapes: flowShapes }, fallbackText);
+    }
   }
 
   function pasteClipboard() {
@@ -2438,6 +2475,8 @@ export function createBoardCanvas({
       panX = 0;
       panY = 0;
       setZoomPercent(100, { notify: true });
+    } else if (action === 'send-wordflow') {
+      document.getElementById('btn-board-send-wordflow')?.click();
     }
   });
 
@@ -2854,5 +2893,103 @@ export function createBoardCanvas({
     deleteSelected,
     groupSelected,
     ungroupSelected,
+    getExportPayload: () => {
+      const targets = selectedIds.size > 0 ? expandWithFrameContents(getSelectedShapes()) : shapes;
+      const flowShapes = serializeShapesForFlow(targets);
+      return flowShapes.length > 0
+        ? { source: 'boardflow', kind: 'shapes', shapes: flowShapes }
+        : null;
+    },
+    importFlowPayload: (payload) => {
+      if (!payload) return false;
+      const rect = viewportEl?.getBoundingClientRect();
+      const viewCx = rect ? (rect.width / 2 - panX) / zoom : 400;
+      const viewCy = rect ? (rect.height / 2 - panY) / zoom : 300;
+
+      if (payload.kind === 'text' && payload.text) {
+        const text = String(payload.text).trim();
+        if (!text) return false;
+        const lines = text.split(/\r?\n/);
+        const maxChars = Math.max(...lines.map((l) => l.length), 12);
+        const fontSize = Math.max(10, Math.min(48, Number(payload.textStyle?.fontSize) || 14));
+        const w = Math.min(440, Math.max(180, Math.round(maxChars * fontSize * 0.58 + 32)));
+        const h = Math.max(48, Math.round(lines.length * fontSize * 1.45 + 24));
+        const prev = snapshot();
+        const shape = {
+          id: `shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          type: 'text',
+          x: Math.round(viewCx - w / 2),
+          y: Math.round(viewCy - h / 2),
+          w,
+          h,
+          rotation: 0,
+          fillColor: 'none',
+          strokeColor: 'none',
+          strokeWidth: 0,
+          strokeStyle: 'solid',
+          textEnabled: true,
+          label: text,
+          fontFamily: payload.textStyle?.fontFamily || '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontSize,
+          fontWeight: payload.textStyle?.fontWeight || 'normal',
+          textColor: payload.textStyle?.textColor || '#1a1a1a',
+          textAlign: payload.textStyle?.textAlign || 'left',
+          textVAlign: 'top',
+          opacity: 1,
+        };
+        shapes.push(shape);
+        selectedIds = new Set([shape.id]);
+        recordUndo(prev);
+        render();
+        positionMiniBar();
+        onMutate?.();
+        return true;
+      }
+
+      if (payload.kind === 'shapes' && Array.isArray(payload.shapes) && payload.shapes.length > 0) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        payload.shapes.forEach((s) => {
+          const sx1 = s.type === 'line' || s.type === 'arrow' ? Math.min(s.x1, s.x2) : s.x;
+          const sy1 = s.type === 'line' || s.type === 'arrow' ? Math.min(s.y1, s.y2) : s.y;
+          const sx2 = s.type === 'line' || s.type === 'arrow' ? Math.max(s.x1, s.x2) : s.x + (s.w || 120);
+          const sy2 = s.type === 'line' || s.type === 'arrow' ? Math.max(s.y1, s.y2) : s.y + (s.h || 80);
+          minX = Math.min(minX, sx1);
+          minY = Math.min(minY, sy1);
+          maxX = Math.max(maxX, sx2);
+          maxY = Math.max(maxY, sy2);
+        });
+        const dx = Math.round(viewCx - (minX + maxX) / 2);
+        const dy = Math.round(viewCy - (minY + maxY) / 2);
+        const groupId = payload.shapes.length > 1 ? `grp-${Date.now().toString(36)}` : undefined;
+        const prev = snapshot();
+        const nextIds = new Set();
+        payload.shapes.forEach((raw) => {
+          const clone = JSON.parse(JSON.stringify(raw));
+          clone.id = `shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+          if (groupId) clone.groupId = groupId;
+          if (clone.type === 'line' || clone.type === 'arrow') {
+            clone.x1 += dx;
+            clone.y1 += dy;
+            clone.x2 += dx;
+            clone.y2 += dy;
+          } else {
+            clone.x += dx;
+            clone.y += dy;
+          }
+          shapes.push(clone);
+          nextIds.add(clone.id);
+        });
+        selectedIds = nextIds;
+        recordUndo(prev);
+        render();
+        positionMiniBar();
+        onMutate?.();
+        return true;
+      }
+      return false;
+    },
   };
 }

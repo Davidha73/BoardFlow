@@ -180,8 +180,25 @@ fn read_settings_file(app: tauri::AppHandle) -> Result<String, String> {
     fs::read_to_string(path).map_err(|err| format!("Failed to read settings.json: {err}"))
 }
 
+fn mirror_flow_suite_index(app: &tauri::AppHandle, contents: &str) {
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(contents) {
+        if let Ok(data_dir) = app.path().app_data_dir() {
+            let suite_dir = data_dir.parent().unwrap_or(&data_dir).join("FlowSuite");
+            if fs::create_dir_all(&suite_dir).is_ok() {
+                if let Some(recents) = parsed.get("recentDocuments") {
+                    let _ = fs::write(suite_dir.join("recents-boardflow.json"), recents.to_string());
+                }
+                if let Some(templates) = parsed.get("customTemplates") {
+                    let _ = fs::write(suite_dir.join("templates-boardflow.json"), templates.to_string());
+                }
+            }
+        }
+    }
+}
+
 #[tauri::command]
 fn write_settings_file(app: tauri::AppHandle, contents: String) -> Result<(), String> {
+    mirror_flow_suite_index(&app, &contents);
     if let Some(install_dir) = install_settings_dir() {
         let target = install_dir.join("settings.json");
         if fs::write(&target, &contents).is_ok() {
@@ -194,8 +211,25 @@ fn write_settings_file(app: tauri::AppHandle, contents: String) -> Result<(), St
         .map_err(|err| format!("Failed to resolve settings directory: {err}"))?;
     fs::create_dir_all(&config_dir)
         .map_err(|err| format!("Failed to create settings directory: {err}"))?;
-    fs::write(config_dir.join("settings.json"), contents)
+    fs::write(config_dir.join("settings.json"), &contents)
         .map_err(|err| format!("Failed to write settings.json: {err}"))
+}
+
+#[tauri::command]
+fn return_to_flowdash() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let script = "tell application \"System Events\"\n\
+            set procs to (every process whose name is \"FlowDash\" or name is \"flowdash\")\n\
+            if (count of procs) > 0 then\n\
+              set frontmost of item 1 of procs to true\n\
+            else\n\
+              do shell script \"open -a \\\"FlowDash\\\"\"\n\
+            end if\n\
+            end tell";
+        let _ = Command::new("osascript").args(["-e", script]).spawn();
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -203,6 +237,64 @@ fn print_document(window: tauri::WebviewWindow) -> Result<(), String> {
     window
         .print()
         .map_err(|err| format!("Failed to open print dialog: {err}"))
+}
+
+fn flow_handoff_path(app: &tauri::AppHandle, target: &str) -> Result<std::path::PathBuf, String> {
+    let safe_target = match target {
+        "boardflow" => "boardflow",
+        "wordflow" => "wordflow",
+        _ => return Err("Unsupported Flow Suite target app.".to_string()),
+    };
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| format!("Failed to resolve app data dir: {err}"))?;
+    let suite_dir = data_dir
+        .parent()
+        .unwrap_or(&data_dir)
+        .join("FlowSuite");
+    fs::create_dir_all(&suite_dir)
+        .map_err(|err| format!("Failed to create FlowSuite dir: {err}"))?;
+    Ok(suite_dir.join(format!("handoff-{safe_target}.json")))
+}
+
+#[tauri::command]
+fn write_flow_handoff(app: tauri::AppHandle, target: String, payload: String) -> Result<(), String> {
+    let path = flow_handoff_path(&app, &target)?;
+    fs::write(&path, payload).map_err(|err| format!("Failed to write handoff: {err}"))?;
+
+    #[cfg(target_os = "macos")]
+    {
+        let (app_name, bin_name) = if target == "boardflow" {
+            ("BoardFlow", "boardflow")
+        } else {
+            ("WordFlow", "wordflow")
+        };
+        let script = format!(
+            "tell application \"System Events\"\n\
+             set procs to (every process whose name is \"{app_name}\" or name is \"{bin_name}\")\n\
+             if (count of procs) > 0 then\n\
+               set frontmost of item 1 of procs to true\n\
+             else\n\
+               do shell script \"open -a \\\"{app_name}\\\"\"\n\
+             end if\n\
+             end tell"
+        );
+        let _ = Command::new("osascript").args(["-e", &script]).spawn();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn consume_flow_handoff(app: tauri::AppHandle, target: String) -> Result<String, String> {
+    let path = flow_handoff_path(&app, &target)?;
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    let contents = fs::read_to_string(&path).unwrap_or_default();
+    let _ = fs::remove_file(&path);
+    Ok(contents)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -231,7 +323,10 @@ pub fn run() {
             open_external_url,
             print_document,
             read_settings_file,
-            write_settings_file
+            write_settings_file,
+            write_flow_handoff,
+            consume_flow_handoff,
+            return_to_flowdash
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

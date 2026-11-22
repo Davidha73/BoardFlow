@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save, confirm, message } from '@tauri-apps/plugin-dialog';
 import { exists, readTextFile, rename, stat, writeFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { addRecentDocument, removeRecentDocument } from './settingsStore.js';
@@ -225,10 +226,17 @@ export function createFileService({ board, onStateChange, initialHasOpenDocument
     if (!hasOpenDocument) return;
     const ok = await confirmDiscardIfDirty();
     if (!ok) return;
+    isDirty = false;
+    try {
+      await invoke('return_to_flowdash');
+      await getCurrentWindow().destroy();
+      return;
+    } catch {
+      // Fallback outside Tauri
+    }
     hasOpenDocument = false;
     currentPath = null;
     customUntitledName = null;
-    isDirty = false;
     board.clear();
     await notify();
   }
@@ -258,6 +266,12 @@ export function createFileService({ board, onStateChange, initialHasOpenDocument
     printDocument,
     markDirty,
     isDirty: () => isDirty,
+    hasUnsavedChanges: () => Boolean(hasOpenDocument && isDirty),
+    getDirtyFileNames: () =>
+      hasOpenDocument && isDirty
+        ? [currentPath ? getBasename(currentPath) : customUntitledName || 'Untitled.board']
+        : [],
+    saveAllDirty: async () => (hasOpenDocument && isDirty ? saveDocument(false) : true),
     hasFilePath: () => Boolean(currentPath),
     getCurrentPath: () => currentPath,
     getCurrentFileName: () =>

@@ -14,11 +14,17 @@ import {
 } from './modules/settingsStore.js';
 import { createStatusBar } from './modules/statusBar.js';
 import { createSettingsDrawer } from './modules/settingsDrawer.js';
-import { createRecentDocsView, STARTER_TEMPLATES } from './modules/recentDocsView.js';
+import { STARTER_TEMPLATES } from './modules/recentDocsView.js';
 import { initWindowState } from './modules/windowState.js';
 import { initDockableToolbars } from './modules/dockableToolbars.js';
 import { createBoardCanvas } from './modules/boardCanvas.js';
 import { createFileService } from './modules/fileService.js';
+import {
+  decodeFlowClipboardHtml,
+  sendFlowHandoff,
+  showFlowToast,
+  startFlowHandoffListener,
+} from './modules/flowLink.js';
 
 async function initApp() {
   initIcons();
@@ -49,7 +55,83 @@ async function initApp() {
   statusBar.setDefaultZoom(currentDefaultZoom);
   statusBar.setZoom(currentDefaultZoom);
 
-  initWindowState(initialSettings.window, (windowPatch) => saveSettings({ window: windowPatch }));
+  function promptUnsavedBeforeQuit(dirtyNames) {
+    const backdropEl = document.getElementById('quit-modal-backdrop');
+    const modalEl = document.getElementById('quit-modal');
+    const messageEl = document.getElementById('quit-modal-message');
+    const saveBtn = document.getElementById('btn-quit-save');
+    const discardBtn = document.getElementById('btn-quit-discard');
+    const cancelBtn = document.getElementById('btn-quit-cancel');
+    if (!modalEl || !saveBtn || !discardBtn || !cancelBtn) {
+      return Promise.resolve('discard');
+    }
+
+    if (messageEl) {
+      messageEl.textContent =
+        dirtyNames.length === 1
+          ? `Do you want to save changes to "${dirtyNames[0]}" before quitting?`
+          : `You have ${dirtyNames.length} unsaved boards. Do you want to save changes before quitting?`;
+    }
+
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        modalEl.classList.remove('is-open');
+        backdropEl?.classList.remove('is-open');
+        modalEl.setAttribute('aria-hidden', 'true');
+        backdropEl?.setAttribute('aria-hidden', 'true');
+        saveBtn.removeEventListener('click', onSave);
+        discardBtn.removeEventListener('click', onDiscard);
+        cancelBtn.removeEventListener('click', onCancel);
+        backdropEl?.removeEventListener('click', onCancel);
+        document.removeEventListener('keydown', onKeyDown);
+      };
+
+      const onSave = () => {
+        cleanup();
+        resolve('save');
+      };
+      const onDiscard = () => {
+        cleanup();
+        resolve('discard');
+      };
+      const onCancel = () => {
+        cleanup();
+        resolve('cancel');
+      };
+      const onKeyDown = (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          onCancel();
+        }
+      };
+
+      saveBtn.addEventListener('click', onSave);
+      discardBtn.addEventListener('click', onDiscard);
+      cancelBtn.addEventListener('click', onCancel);
+      backdropEl?.addEventListener('click', onCancel);
+      document.addEventListener('keydown', onKeyDown);
+
+      backdropEl?.classList.add('is-open');
+      modalEl.classList.add('is-open');
+      modalEl.setAttribute('aria-hidden', 'false');
+      backdropEl?.setAttribute('aria-hidden', 'false');
+      saveBtn.focus();
+    });
+  }
+
+  initWindowState(
+    initialSettings.window,
+    (windowPatch) => saveSettings({ window: windowPatch }),
+    async () => {
+      if (!fileService?.hasUnsavedChanges()) return true;
+      const choice = await promptUnsavedBeforeQuit(fileService.getDirtyFileNames());
+      if (choice === 'discard') return true;
+      if (choice === 'save') {
+        return fileService.saveAllDirty();
+      }
+      return false;
+    }
+  );
 
   const viewportEl = document.getElementById('board-viewport');
   viewportEl?.setAttribute('data-grid', String(gridEnabled));
@@ -106,31 +188,7 @@ async function initApp() {
   }
   applyAutoSaveInterval(autoSaveInterval);
 
-  const recentDocsView = createRecentDocsView({
-    containerEl: document.getElementById('recent-docs-view'),
-    onOpenFile: (path) => fileService?.openFileByPath(path),
-    onNewDocument: () => fileService?.newDocument(),
-    onNewTemplate: (tpl) => fileService?.newFromTemplate(tpl),
-    getCustomTemplates,
-    onDeleteTemplate: async (id) => {
-      await removeCustomTemplate(id);
-      recentDocsView.render(getRecentDocuments());
-    },
-    onOpenDialog: () => fileService?.openDocument(),
-    onClearRecent: async () => {
-      await clearRecentDocuments();
-      recentDocsView.render([]);
-    },
-    onRemoveRecent: async (path) => {
-      const next = await removeRecentDocument(path);
-      recentDocsView.render(next);
-    },
-    onCopyPath: (path) => path && navigator.clipboard?.writeText(path),
-    onShowInExplorer: (path) => path && invoke('show_in_explorer', { path }).catch(() => {}),
-  });
-
   createSettingsDrawer({
-    getStartIn: () => currentStartIn,
     getDefaultZoom: () => currentDefaultZoom,
     getGridEnabled: () => gridEnabled,
     getSnapToGrid: () => snapToGrid,
@@ -139,9 +197,6 @@ async function initApp() {
     getAlignGuidesEnabled: () => alignGuidesEnabled,
     getTheme: () => statusBar.getTheme?.() || 'light',
     getAutoSaveInterval: () => autoSaveInterval,
-    onStartInChange: (startIn) => {
-      currentStartIn = startIn;
-    },
     onDefaultZoomChange: (zoom) => {
       currentDefaultZoom = zoom;
       statusBar.setDefaultZoom(zoom);
@@ -173,7 +228,6 @@ async function initApp() {
     onAutoSaveIntervalChange: (seconds) => applyAutoSaveInterval(seconds),
     onClearRecentDocuments: async () => {
       await clearRecentDocuments();
-      recentDocsView.render([]);
     },
     onResetWorkspaceLayout: () => {
       dockableToolbars?.resetLayout?.();
@@ -195,7 +249,7 @@ async function initApp() {
 
   fileService = createFileService({
     board,
-    initialHasOpenDocument: currentStartIn !== 'start-page',
+    initialHasOpenDocument: true,
     onStateChange: ({ fileName, isDirty, hasOpenDocument }) => {
       appShellEl?.setAttribute('data-has-document', String(hasOpenDocument));
       if (saveBtnEl) saveBtnEl.disabled = !hasOpenDocument;
@@ -214,7 +268,6 @@ async function initApp() {
       const pillDirtyEl = document.getElementById('doc-pill-dirty');
       if (pillNameEl) pillNameEl.textContent = hasOpenDocument ? fileName : 'No Board';
       if (pillDirtyEl) pillDirtyEl.classList.toggle('is-dirty', Boolean(hasOpenDocument && isDirty));
-      recentDocsView.render(getRecentDocuments());
       statusBar.updateFile({ fileName, isDirty });
       syncAutoSaveStatus();
       document.title = '';
@@ -382,7 +435,6 @@ async function initApp() {
       desc: tplDescEl?.value?.trim() || '',
       shapes: board.getData().shapes,
     });
-    recentDocsView.render(getRecentDocuments());
     closeTpl();
   });
 
@@ -390,7 +442,24 @@ async function initApp() {
   document.getElementById('btn-insert-sticky')?.addEventListener('click', () => board.insertShape('sticky'));
   document.getElementById('btn-insert-text')?.addEventListener('click', () => board.insertShape('text'));
   document.getElementById('btn-insert-frame')?.addEventListener('click', () => board.insertShape('frame'));
+  document.getElementById('btn-switch-flowdash')?.addEventListener('click', () => {
+    invoke('return_to_flowdash').catch(() => {});
+  });
+
   document.getElementById('btn-board-copy-png')?.addEventListener('click', () => board.copySelectionAsPng());
+  document.getElementById('btn-board-send-wordflow')?.addEventListener('click', async () => {
+    const payload = board.getExportPayload();
+    if (!payload) {
+      showFlowToast('Select shapes or add content to send');
+      return;
+    }
+    try {
+      await sendFlowHandoff('wordflow', payload);
+      showFlowToast('Sent to WordFlow');
+    } catch {
+      showFlowToast('Could not send to WordFlow');
+    }
+  });
   const shapesBtnEl = document.getElementById('btn-insert-shape');
   const shapesPopoverEl = document.getElementById('shapes-popover');
   shapesBtnEl?.addEventListener('click', () => shapesPopoverEl?.classList.toggle('is-open'));
@@ -477,14 +546,49 @@ async function initApp() {
     });
   });
   document.addEventListener('paste', (e) => {
+    const active = document.activeElement;
+    if (active?.isContentEditable || active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA') return;
+
     const files = Array.from(e.clipboardData?.files || []).filter((f) => f.type?.startsWith('image/'));
-    if (files.length === 0) return;
-    e.preventDefault();
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => typeof reader.result === 'string' && embedImageDataUrl(reader.result, file.name);
-      reader.readAsDataURL(file);
-    });
+    if (files.length > 0) {
+      e.preventDefault();
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string' && embedImageDataUrl(reader.result, file.name);
+        reader.readAsDataURL(file);
+      });
+      return;
+    }
+
+    const html = e.clipboardData?.getData('text/html') || '';
+    const flowPayload = decodeFlowClipboardHtml(html);
+    if (flowPayload && board.importFlowPayload(flowPayload)) {
+      e.preventDefault();
+      return;
+    }
+
+    const plainText = e.clipboardData?.getData('text/plain') || '';
+    if (plainText.trim() && board.importFlowPayload({ kind: 'text', text: plainText })) {
+      e.preventDefault();
+    }
+  });
+
+  startFlowHandoffListener('boardflow', async (payload) => {
+    if (payload.kind === 'new-document') {
+      await fileService.newDocument();
+      return;
+    }
+    if (payload.kind === 'new-template' && payload.template) {
+      await fileService.newFromTemplate(payload.template);
+      return;
+    }
+    if (payload.kind === 'open-file' && payload.path) {
+      await fileService.openFileByPath(payload.path);
+      return;
+    }
+    if (board.importFlowPayload(payload)) {
+      showFlowToast('Imported from WordFlow');
+    }
   });
 
   // Focus mode

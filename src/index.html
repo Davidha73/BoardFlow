@@ -18,6 +18,15 @@
             <button
               type="button"
               class="btn-more-dots"
+              id="btn-switch-flowdash"
+              title="Switch to FlowDash"
+              aria-label="Switch to FlowDash"
+            >
+              <i data-lucide="square-arrow-down-left-enter" class="lucide-sm"></i>
+            </button>
+            <button
+              type="button"
+              class="btn-more-dots"
               id="btn-settings"
               title="Settings"
               aria-label="Open Settings"
@@ -98,7 +107,7 @@
                   <span class="doc-pill-shortcut">Ctrl+Shift+S</span>
                 </button>
                 <button type="button" class="doc-pill-item" role="menuitem" id="btn-save-template" title="Save Current Board as Template">
-                  <i data-lucide="file-plus" class="lucide-xs"></i>
+                  <i data-lucide="bookmark-plus" class="lucide-xs"></i>
                   <span>Save as Template…</span>
                 </button>
                 <button type="button" class="doc-pill-item" role="menuitem" id="btn-duplicate" title="Make a Copy">
@@ -110,11 +119,11 @@
                   <span>Rename…</span>
                 </button>
                 <button type="button" class="doc-pill-item" role="menuitem" id="btn-revert" title="Discard Changes and Reload Saved File">
-                  <i data-lucide="undo-2" class="lucide-xs"></i>
+                  <i data-lucide="rotate-ccw" class="lucide-xs"></i>
                   <span>Revert to Saved</span>
                 </button>
                 <button type="button" class="doc-pill-item" role="menuitem" id="btn-show-finder" title="Reveal File in Finder">
-                  <i data-lucide="folder-open" class="lucide-xs"></i>
+                  <i data-lucide="folder-search" class="lucide-xs"></i>
                   <span>Show in Finder</span>
                 </button>
                 <div class="doc-pill-divider" role="separator"></div>
@@ -327,6 +336,9 @@
             <button type="button" class="fmt-btn" id="btn-board-copy-png" title="Copy Selection as PNG (for pasting into WordFlow)" aria-label="Copy as PNG">
               <i data-lucide="clipboard-copy" class="lucide-sm"></i>
             </button>
+            <button type="button" class="fmt-btn" id="btn-board-send-wordflow" title="Send Selection to WordFlow" aria-label="Send to WordFlow">
+              <i data-lucide="send" class="lucide-sm"></i>
+            </button>
           </div>
         </div>
       </header>
@@ -334,8 +346,6 @@
       <div class="workspace-row">
         <aside class="dock-zone dock-side dock-left" id="dock-left" data-dock="left" aria-label="Left toolbar dock"></aside>
         <main class="workspace board-workspace" id="workspace" role="main">
-          <div id="recent-docs-view" class="recent-docs-view"></div>
-
           <div class="board-viewport" id="board-viewport" data-grid="true">
             <div class="board-stage" id="board-stage">
               <div class="board-shapes-layer" id="board-shapes-layer"></div>
@@ -584,6 +594,8 @@
               <button type="button" class="canvas-context-item" data-canvas-action="select-all">Select All</button>
               <button type="button" class="canvas-context-item" data-canvas-action="fit-view">Fit View</button>
               <button type="button" class="canvas-context-item" data-canvas-action="reset-view">Reset View</button>
+              <div class="canvas-context-divider"></div>
+              <button type="button" class="canvas-context-item" data-canvas-action="send-wordflow">Send to WordFlow</button>
             </div>
           </div>
         </main>
@@ -624,14 +636,7 @@
         </button>
       </div>
       <div class="settings-drawer-body" id="settings-drawer-body">
-        <div class="settings-section-header">Startup &amp; Files</div>
-        <div class="settings-row">
-          <label class="settings-label" for="settings-start-in">Start In</label>
-          <select id="settings-start-in" class="settings-select">
-            <option value="start-page">Start Page</option>
-            <option value="board" selected>Board</option>
-          </select>
-        </div>
+        <div class="settings-section-header">Files &amp; Saving</div>
         <div class="settings-row">
           <label class="settings-label" for="settings-autosave">Auto-Save</label>
           <select id="settings-autosave" class="settings-select">
@@ -778,35 +783,27 @@
       </div>
     </section>
 
-    <div class="dict-modal-backdrop" id="all-templates-modal-backdrop" aria-hidden="true"></div>
-    <section class="all-templates-modal" id="all-templates-modal" role="dialog" aria-modal="true" aria-label="All Templates" aria-hidden="true">
-      <div class="dict-modal-header">
-        <span class="settings-drawer-title">All Templates</span>
-        <button type="button" class="settings-close-btn" id="btn-close-all-templates" title="Close" aria-label="Close">
-          <i data-lucide="x" class="lucide-sm"></i>
-        </button>
+    <div class="quit-modal-backdrop" id="quit-modal-backdrop" aria-hidden="true"></div>
+    <section
+      class="quit-modal"
+      id="quit-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Unsaved Changes"
+      aria-hidden="true"
+    >
+      <div class="quit-modal-header">
+        <span class="settings-drawer-title">Unsaved Changes</span>
       </div>
-      <div class="all-templates-modal-body">
-        <div class="recent-templates-grid" id="all-templates-grid"></div>
+      <div class="quit-modal-body">
+        <p class="quit-modal-message" id="quit-modal-message">
+          Do you want to save your changes before quitting?
+        </p>
       </div>
-      <div class="dict-modal-footer">
-        <button type="button" class="settings-footer-btn is-primary" id="btn-done-all-templates">Done</button>
-      </div>
-    </section>
-
-    <div class="dict-modal-backdrop" id="all-recents-modal-backdrop" aria-hidden="true"></div>
-    <section class="all-templates-modal" id="all-recents-modal" role="dialog" aria-modal="true" aria-label="All Recent Boards" aria-hidden="true">
-      <div class="dict-modal-header">
-        <span class="settings-drawer-title">Recent Boards</span>
-        <button type="button" class="settings-close-btn" id="btn-close-all-recents" title="Close" aria-label="Close">
-          <i data-lucide="x" class="lucide-sm"></i>
-        </button>
-      </div>
-      <div class="all-templates-modal-body">
-        <div class="recent-docs-list" id="all-recents-list" role="list"></div>
-      </div>
-      <div class="dict-modal-footer">
-        <button type="button" class="settings-footer-btn is-primary" id="btn-done-all-recents">Done</button>
+      <div class="quit-modal-footer">
+        <button type="button" class="settings-footer-btn" id="btn-quit-cancel">Cancel</button>
+        <button type="button" class="settings-footer-btn" id="btn-quit-discard">Don't Save</button>
+        <button type="button" class="settings-footer-btn is-primary" id="btn-quit-save">Save</button>
       </div>
     </section>
 
